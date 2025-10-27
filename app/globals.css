@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/* 🎨 --- Theme Variables --- */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --blue-primary: #2563eb; /* Tailwind blue-600 */
+  --blue-light: #3b82f6;   /* Tailwind blue-500 */
+  --transition-fast: 0.25s ease-in-out;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* 🌙 --- Dark Mode --- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #f3f4f6;
+  }
+}
+
+/* 🧱 --- Base Layout --- */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  overflow-y: scroll; /* ✅ ป้องกัน layout jump เวลาเปลี่ยนหน้า */
+  -webkit-tap-highlight-color: transparent; /* ✅ ป้องกัน flash ตอนแตะในมือถือ */
+}
+
+/* 📱 --- App Container (กันไม่ให้ content ชน BottomNav) --- */
+main {
+  padding-bottom: 80px; /* ✅ เผื่อพื้นที่ให้ BottomNav */
+}
+
+/* ✨ --- Smooth Animations --- */
+* {
+  scroll-behavior: smooth;
+}
+
+/* 🧭 --- BottomNav Shadows --- */
+.nav-shadow {
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* 🩵 --- Active Glow for buttons --- */
+.btn-active {
+  background: var(--blue-primary);
+  color: #fff;
+  box-shadow: 0 4px 8px rgba(37, 99, 235, 0.25);
+}
