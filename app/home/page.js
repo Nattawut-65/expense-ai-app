@@ -87,8 +87,6 @@ useEffect(() => {
     unsubscribeAuth();
   };
 }, [router]);
-<h1>Expense AI (Updated)</h1>
-
   // ✅ หมวดหมู่พื้นฐาน
   const baseCategories = [
     { name: "อาหาร/เครื่องดื่ม", amount: 0, icon: "🍜", color: "bg-red-500" },

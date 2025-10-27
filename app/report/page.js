@@ -350,9 +350,14 @@ const generateWeeklyData = (transactions) => {
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.25 }}
           >
-            <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer 
+  width="100%" 
+  height={window.innerWidth < 640 ? 320 : 400}
+>
+
               <BarChart
                 data={data}
+                
                 onClick={(e) => {
                   if (chartMode === "daily" && e?.activeLabel) {
                     setSelectedDay(e.activeLabel);
@@ -433,7 +438,7 @@ const generateWeeklyData = (transactions) => {
   {/* 🔹 Layout Responsive: มือถือเรียงลง / คอมแบ่งครึ่ง */}
   <div className="flex flex-col md:flex-row items-center md:items-start gap-10 md:gap-16">
 
-    {/* 🔹 ซ้าย: พายชาร์ต */}
+    {/* 🔹 ซ้าย: พายชาร์ต (Excel-style) */}
     <div className="flex flex-col items-center justify-center w-full md:w-1/2">
       <h3 className="text-lg md:text-xl font-bold text-blue-800 text-center mb-4">
         รายจ่ายหมวดหมู่
@@ -442,209 +447,142 @@ const generateWeeklyData = (transactions) => {
       {/* ✅ กล่องกรอบกราฟ */}
       <div className="w-full flex justify-center">
         <div className="bg-gray-50 border border-gray-200 rounded-xl shadow-sm 
-                        w-full max-w-[420px] md:max-w-[600px] aspect-[4/3]
-                        flex flex-col justify-center items-center p-4 relative">
+                        w-[95vw] sm:w-[90vw] md:w-[600px]
+                        aspect-square flex flex-col justify-center items-center 
+                        p-3 sm:p-5 relative">
 
-          <ResponsiveContainer 
-  width="100%" 
-  height={window.innerWidth < 640 ? 250 : 400}
->
-  <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 60 }}>
-
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart margin={{ top: 10, right: 30, left: 0, bottom: 10 }}>
               <Pie
                 data={(() => {
-                  const saved = sessionStorage.getItem("aiResult");
-                  const categoryMap = {
-                    "อาหาร/เครื่องดื่ม": { icon: "🍜", color: "#ef4444" },
-                    "ค่าที่อยู่อาศัย/เครื่องใช้": { icon: "🏠", color: "#3b82f6" },
-                    "ยานพาหนะ/การเดินทาง": { icon: "🚗", color: "#eab308" },
-                    "เสื้อผ้า/รองเท้า": { icon: "👗", color: "#a855f7" },
-                    "การสื่อสาร": { icon: "📞", color: "#ec4899" },
-                    "การศึกษา": { icon: "🎓", color: "#22c55e" },
-                    "เวชภัณฑ์/ค่ารักษา": { icon: "💊", color: "#14b8a6" },
-                    "บันเทิง": { icon: "🎉", color: "#f97316" },
-                    "อื่นๆ": { icon: "📦", color: "#6b7280" },
-                  };
+                  const now = new Date();
+                  const thisMonth = now.getMonth();
+                  const thisYear = now.getFullYear();
+                  const categoryTotals = {};
 
-                  let categories = [];
-
-                  // ✅ ถ้ามีข้อมูลจาก AI
-                  if (saved) {
-                    const aiData = JSON.parse(saved);
-                    if (aiData?.categories?.length > 0) {
-                      categories = aiData.categories
-                        .map((c) => ({
-                          name: c.name,
-                          icon: categoryMap[c.name]?.icon || "📦",
-                          color: categoryMap[c.name]?.color || "#6b7280",
-                          value: c.amount,
-                        }))
-                        .filter((c) => c.value > 0); // ✅ กรองหมวด 0
+                  allTransactions.forEach((t) => {
+                    const d = t.date?.toDate?.() || new Date(t.date);
+                    if (
+                      t.type === "expense" &&
+                      d.getMonth() === thisMonth &&
+                      d.getFullYear() === thisYear
+                    ) {
+                      const cat = t.category || "อื่นๆ";
+                      categoryTotals[cat] = (categoryTotals[cat] || 0) + t.amount;
                     }
-                  }
+                  });
 
-                  // ✅ ถ้าไม่มีข้อมูลจาก AI ใช้ Firestore
-                  if (categories.length === 0) {
-                    const now = new Date();
-                    const thisMonth = now.getMonth();
-                    const thisYear = now.getFullYear();
-                    const categoryTotals = {};
-
-                    allTransactions.forEach((t) => {
-                      const d = t.date?.toDate?.() || new Date(t.date);
-                      if (
-                        t.type === "expense" &&
-                        d.getMonth() === thisMonth &&
-                        d.getFullYear() === thisYear
-                      ) {
-                        const cat = t.category || "อื่นๆ";
-                        categoryTotals[cat] =
-                          (categoryTotals[cat] || 0) + t.amount;
-                      }
-                    });
-
-                    const total = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
-
-                    categories = Object.entries(categoryTotals)
-                      .map(([name, value]) => ({
-                        name,
-                        icon: categoryMap[name]?.icon || "📦",
-                        color: categoryMap[name]?.color || "#6b7280",
-                        value,
-                        percent: total ? (value / total) * 100 : 0,
-                      }))
-                      .filter((c) => c.value > 0) // ✅ ไม่แสดงหมวด 0
-                      .sort((a, b) => b.value - a.value);
-                  }
-
-                  return categories;
+                  const total = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
+                  return Object.entries(categoryTotals)
+                    .map(([name, value]) => ({
+                      name,
+                      value,
+                      percent: total ? (value / total) * 100 : 0,
+                    }))
+                    .sort((a, b) => b.value - a.value);
                 })()}
                 dataKey="value"
                 nameKey="name"
-                outerRadius="80%"
-                label={({ payload, percent }) =>
-                  `${payload.icon} ${(percent * 100).toFixed(1)}%`
-                }
+                outerRadius="70%"
+                label={({ name, percent }) => `${name} ${(percent).toFixed(1)}%`}
               >
                 {[
-                  "#ef4444", "#3b82f6", "#eab308", "#a855f7",
-                  "#ec4899", "#22c55e", "#14b8a6", "#f97316", "#6b7280",
-                ].map((c, i) => (
-                  <Cell key={i} fill={c} />
+                  "#2563eb", // น้ำเงิน
+                  "#f97316", // ส้ม
+                  "#10b981", // เขียว
+                  "#facc15", // เหลือง
+                  "#a855f7", // ม่วง
+                  "#ef4444", // แดง
+                  "#14b8a6", // ฟ้าอมเขียว
+                  "#6b7280", // เทา
+                ].map((color, i) => (
+                  <Cell key={i} fill={color} />
                 ))}
               </Pie>
 
               <Tooltip
-                formatter={(value, name, props) => [
-                  `${value.toLocaleString()} บาท`,
-                  `${props.payload.icon || "📦"} ${props.payload.name}`,
-                ]}
+                formatter={(value, name) => [`${value.toLocaleString()} บาท`, name]}
                 contentStyle={{
-                  fontSize: "0.85rem",
-                  borderRadius: "8px",
+                  fontSize: "0.9rem",
+                  borderRadius: "6px",
                   padding: "6px 10px",
                 }}
               />
 
-              {/* ✅ Legend กลางล่างแบบสวย */}
-             <Legend
-  verticalAlign="bottom"
-  align="center"
-  wrapperStyle={{
-    display: "flex",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: "6px",
-    fontSize: "14px",
-    width: "100%",
-    paddingBottom: "8px",
-    position: "relative",
-  }}
-  iconSize={12}
-  formatter={(value, entry) => `${entry?.payload?.icon || ""}`}
-/>
-
-              
+              <Legend
+                layout="vertical"
+                align="right"
+                verticalAlign="middle"
+                wrapperStyle={{
+                  fontSize: "14px",
+                  paddingRight: "10px",
+                  lineHeight: "22px",
+                }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
       </div>
     </div>
 
-    {/* 🔹 ขวา: หมวดหมู่ที่ใช้เยอะสุดในเดือน */}
-<div className="flex flex-col items-center w-full md:w-1/2 text-center">
-  <h3 className="text-lg md:text-xl font-bold mb-4 text-blue-800">
-    หมวดหมู่ที่ใช้เยอะสุดในเดือนนี้
-  </h3>
-  {(() => {
-    // ✅ ใช้ข้อมูลเดียวกับ PieChart
-    const saved = sessionStorage.getItem("aiResult");
-    let categories = [];
+    {/* 🔹 ขวา: หมวดหมู่ที่ใช้เยอะสุด */}
+    <div className="flex flex-col items-center w-full md:w-1/2 text-center">
+      <h3 className="text-lg md:text-xl font-bold mb-4 text-blue-800">
+        หมวดหมู่ที่ใช้เยอะสุดในเดือนนี้
+      </h3>
 
-    if (saved) {
-      const aiData = JSON.parse(saved);
-      if (aiData?.categories?.length > 0) {
-        categories = aiData.categories
-          .map((c) => ({
-            name: c.name,
-            icon: c.icon || "📦",
-            value: c.amount || c.value || 0,
-          }))
+      {(() => {
+        const now = new Date();
+        const thisMonth = now.getMonth();
+        const thisYear = now.getFullYear();
+        const categoryTotals = {};
+
+        allTransactions.forEach((t) => {
+          const d = t.date?.toDate?.() || new Date(t.date);
+          if (
+            t.type === "expense" &&
+            d.getMonth() === thisMonth &&
+            d.getFullYear() === thisYear
+          ) {
+            const cat = t.category || "อื่นๆ";
+            categoryTotals[cat] = (categoryTotals[cat] || 0) + t.amount;
+          }
+        });
+
+        const categories = Object.entries(categoryTotals)
+          .map(([name, value]) => ({ name, value }))
           .sort((a, b) => b.value - a.value);
-      }
-    }
 
-    // ✅ ถ้าไม่มีข้อมูลจาก AI → ใช้ Firestore
-    if (categories.length === 0) {
-      const now = new Date();
-      const thisMonth = now.getMonth();
-      const thisYear = now.getFullYear();
-      const categoryTotals = {};
+        if (categories.length === 0)
+          return <p className="text-gray-500 mt-4">ไม่มีข้อมูลรายจ่ายในเดือนนี้</p>;
 
-      allTransactions.forEach((t) => {
-        const d = t.date?.toDate?.() || new Date(t.date);
-        if (t.type === "expense" && d.getMonth() === thisMonth && d.getFullYear() === thisYear) {
-          const cat = t.category || "อื่นๆ";
-          categoryTotals[cat] = (categoryTotals[cat] || 0) + t.amount;
-        }
-      });
+        const total = categories.reduce((a, b) => a + b.value, 0);
 
-      categories = Object.entries(categoryTotals)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-    }
-
-    if (categories.length === 0)
-      return <p className="text-gray-500 mt-4">ไม่มีข้อมูลรายจ่ายในเดือนนี้</p>;
-
-    // ✅ แสดงลิสต์หมวดจากมากไปน้อย
-    return (
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 md:p-5 w-full max-w-[380px] md:max-w-[420px]">
-        {categories.map((cat, i) => (
-          <div
-            key={cat.name}
-            className={`flex justify-between items-center py-1 ${
-              i === 0 ? "font-bold text-red-600" : "text-gray-700"
-            }`}
-          >
-            <span className="flex items-center">
-              <span className="text-gray-400 mr-2">{i + 1}.</span>
-              {cat.icon} {cat.name}
-            </span>
-<span className="text-sm text-gray-600">
-  {cat.value.toLocaleString()} บาท{" "}
-  <span className="text-gray-400 font-medium">
-    ({((cat.value / categories.reduce((a, b) => a + b.value, 0)) * 100).toFixed(1)}%)
-  </span>
-</span>
-
+        return (
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 md:p-5 w-full max-w-[380px] md:max-w-[420px]">
+            {categories.map((cat, i) => (
+              <div
+                key={cat.name}
+                className={`flex justify-between items-center py-1 ${
+                  i === 0 ? "font-bold text-red-600" : "text-gray-700"
+                }`}
+              >
+                <span className="flex items-center">
+                  <span className="text-gray-400 mr-2">{i + 1}.</span>
+                  {cat.name}
+                </span>
+                <span className="text-sm text-gray-600">
+                  {cat.value.toLocaleString()} บาท{" "}
+                  <span className="text-gray-400 font-medium">
+                    ({((cat.value / total) * 100).toFixed(1)}%)
+                  </span>
+                </span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-    );
-  })()}
-</div>
+        );
+      })()}
+    </div>
 
   </div>
 </div>
