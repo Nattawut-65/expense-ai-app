@@ -13,10 +13,13 @@ import {
   updateDoc,
   deleteDoc,
   Timestamp,
+  onSnapshot,
 } from "firebase/firestore";
 import BottomNav from "@/components/BottomNav";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function HistoryPage() {
+  const { theme } = useTheme();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -33,7 +36,7 @@ export default function HistoryPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  // ✅ โหลดข้อมูลจาก Firestore
+  // ✅ โหลดข้อมูลจาก Firestore แบบเรียลไทม์
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -41,43 +44,55 @@ export default function HistoryPage() {
         setLoading(false);
         return;
       }
+      
       try {
         const q = query(
           collection(db, "transactions"),
           where("userId", "==", user.uid),
           orderBy("date", "desc")
         );
-        const querySnapshot = await getDocs(q);
-        const data = querySnapshot.docs.map((docSnap) => {
-          const d = docSnap.data();
-          const dateObj = d.date?.seconds
-            ? new Date(d.date.seconds * 1000)
-            : new Date(d.date);
-          return {
-            id: docSnap.id,
-            name: d.name || "ไม่ระบุรายการ",
-            note: d.note || "",
-            amount: d.amount || 0,
-            type: d.type || "expense",
-            dateObj,
-            date: dateObj.toLocaleString("th-TH", {
-              timeZone: "Asia/Bangkok",
-              year: "numeric",
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            monthStr: dateObj.toISOString().slice(0, 7),
-          };
+        
+        // ใช้ onSnapshot เพื่ออัปเดตเรียลไทม์
+        const unsubscribeSnapshot = onSnapshot(q, (querySnapshot) => {
+          const data = querySnapshot.docs.map((docSnap) => {
+            const d = docSnap.data();
+            const dateObj = d.date?.seconds
+              ? new Date(d.date.seconds * 1000)
+              : new Date(d.date);
+            return {
+              id: docSnap.id,
+              name: d.name || "ไม่ระบุรายการ",
+              note: d.note || "",
+              amount: d.amount || 0,
+              type: d.type || "expense",
+              dateObj,
+              date: dateObj.toLocaleString("th-TH", {
+                timeZone: "Asia/Bangkok",
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              monthStr: dateObj.toISOString().slice(0, 7),
+            };
+          });
+          setTransactions(data);
+          setLoading(false);
+        }, (error) => {
+          console.error("Error fetching transactions:", error);
+          setError("โหลดข้อมูลล้มเหลว ❌");
+          setLoading(false);
         });
-        setTransactions(data);
-      } catch {
+        
+        return () => unsubscribeSnapshot();
+      } catch (error) {
+        console.error("Error setting up listener:", error);
         setError("โหลดข้อมูลล้มเหลว ❌");
-      } finally {
         setLoading(false);
       }
     });
+    
     return () => unsubscribe();
   }, []);
 
@@ -207,7 +222,9 @@ export default function HistoryPage() {
   return (
     <>
       {/* 🔷 Header */}
-      <div className="bg-blue-600 text-white py-3 px-5 flex items-center shadow-md">
+      <div className={`py-3 px-5 flex items-center shadow-md ${
+        theme === "dark" ? "bg-gray-800 text-white" : "bg-blue-600 text-white"
+      }`}>
         <h1 className="font-bold text-lg flex items-center gap-2">📘 ประวัติ</h1>
       </div>
 
@@ -216,16 +233,24 @@ export default function HistoryPage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="min-h-screen bg-blue-50 pb-24 flex justify-center px-3"
+        className={`min-h-screen pb-24 flex justify-center px-3 ${
+          theme === "dark" ? "bg-gray-900" : "bg-blue-50"
+        }`}
       >
-        <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-lg mt-4 p-5">
+        <div className={`relative w-full max-w-2xl rounded-2xl shadow-lg mt-4 p-5 ${
+          theme === "dark" ? "bg-gray-800" : "bg-white"
+        }`}>
           {/* ส่วนหัว */}
           <div className="flex justify-between items-center mb-2">
-            <h2 className="text-lg font-bold text-gray-800">ประวัติรายการ</h2>
+            <h2 className={`text-lg font-bold ${
+              theme === "dark" ? "text-gray-200" : "text-gray-800"
+            }`}>ประวัติรายการ</h2>
             <div className="relative">
               <button
                 onClick={() => setShowMonthPicker(!showMonthPicker)}
-                className="text-blue-600 font-bold hover:underline flex items-center gap-1"
+                className={`font-bold hover:underline flex items-center gap-1 ${
+                  theme === "dark" ? "text-blue-400" : "text-blue-600"
+                }`}
               >
                 📅 {formatThaiMonthShort(selectedMonth)}
               </button>
@@ -235,7 +260,9 @@ export default function HistoryPage() {
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="absolute right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl p-3 z-50 w-52 max-h-[300px] overflow-y-auto"
+                    className={`absolute right-0 mt-2 border rounded-xl shadow-xl p-3 z-50 w-52 max-h-[300px] overflow-y-auto ${
+                      theme === "dark" ? "bg-gray-700 border-gray-600" : "bg-white border-gray-200"
+                    }`}
                   >
                     {[2024, 2025, 2026].map((year) => (
                       <div key={year} className="mb-2">

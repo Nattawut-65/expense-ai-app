@@ -26,8 +26,10 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export default function ReportPage() {
+  const { theme } = useTheme();
   // ✅ ตัวแปรสถานะทั้งหมด
   const [data, setData] = useState([]);
   const [allTransactions, setAllTransactions] = useState([]);
@@ -254,21 +256,29 @@ const generateWeeklyData = (transactions) => {
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: -40, opacity: 0 }}
         transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="flex flex-col min-h-screen bg-white text-gray-800 pb-24"
+        className={`flex flex-col min-h-screen pb-24 ${
+          theme === "dark" ? "bg-gray-900 text-gray-200" : "bg-white text-gray-800"
+        }`}
       >
         {/* ✅ Header */}
-        <header className="bg-blue-600 text-white px-4 py-3 font-bold text-lg flex items-center shadow-md">
+        <header className={`px-4 py-3 font-bold text-lg flex items-center shadow-md ${
+          theme === "dark" ? "bg-gray-800 text-white" : "bg-blue-600 text-white"
+        }`}>
           <span>📊 รายงาน</span>
         </header>
 
     {/* ✅ ปุ่มสลับหน้า */}
-<div className="flex justify-start p-3 border-b border-gray-200 bg-white">
+<div className={`flex justify-start p-3 border-b ${
+  theme === "dark" ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"
+}`}>
   <div className="flex gap-2">
     <button
       onClick={() => setActiveTab("report")}
       className={`px-3 py-1 rounded font-bold ${
         activeTab === "report"
           ? "bg-blue-600 text-white"
+          : theme === "dark"
+          ? "bg-gray-700 text-blue-400"
           : "bg-gray-100 text-blue-700"
       }`}
     >
@@ -280,6 +290,8 @@ const generateWeeklyData = (transactions) => {
       className={`px-3 py-1 rounded font-bold ${
         activeTab === "trend"
           ? "bg-blue-600 text-white"
+          : theme === "dark"
+          ? "bg-gray-700 text-blue-400"
           : "bg-gray-100 text-blue-700"
       }`}
     >
@@ -295,7 +307,7 @@ const generateWeeklyData = (transactions) => {
     <>
       {/* 🔹 ทั้งบล็อกที่คุณแปะมาทั้งหมด (BarChart) วางไว้ตรงนี้ */}
       <div className="flex justify-between items-center mb-2">
-        <h3 className="text-lg font-bold text-blue-700">
+        <h3 className="text-base sm:text-lg font-bold text-blue-700">
           {chartMode === "daily"
             ? "รายรับ–รายจ่ายรายวัน"
             : chartMode === "weekly"
@@ -304,7 +316,7 @@ const generateWeeklyData = (transactions) => {
         </h3>
 
         {/* ✅ ปุ่มสลับโหมดกราฟ */}
-        <div className="flex gap-2">
+        <div className="flex gap-1 sm:gap-2">
           {["daily", "weekly", "monthly"].map((mode) => (
             <button
               key={mode}
@@ -315,7 +327,7 @@ const generateWeeklyData = (transactions) => {
                 setSelectedMonth(null);
                 setShowDetails(false);
               }}
-              className={`px-3 py-1 text-sm font-semibold rounded-full ${
+              className={`px-2 sm:px-3 py-1 text-xs sm:text-sm font-semibold rounded-full ${
                 chartMode === mode
                   ? "bg-blue-600 text-white"
                   : "bg-gray-200 text-gray-700"
@@ -332,11 +344,11 @@ const generateWeeklyData = (transactions) => {
       </div>
 
       {/* ✅ กราฟหลัก */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-3">
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-2 sm:p-3">
         {loading ? (
-          <p className="text-gray-500 text-center">กำลังโหลดข้อมูล...</p>
+          <p className="text-gray-500 text-center py-8">กำลังโหลดข้อมูล...</p>
         ) : error ? (
-          <p className="text-red-500 text-center">{error}</p>
+          <p className="text-red-500 text-center py-8">{error}</p>
         ) : (
           <motion.div
             drag="x"
@@ -350,9 +362,18 @@ const generateWeeklyData = (transactions) => {
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.25 }}
           >
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer 
+              width="100%" 
+              height={window.innerWidth < 640 ? 220 : 260}
+            >
               <BarChart
                 data={data}
+                margin={{ 
+                  top: 5, 
+                  right: window.innerWidth < 640 ? 5 : 20, 
+                  left: window.innerWidth < 640 ? -10 : 0, 
+                  bottom: 5 
+                }}
                 onClick={(e) => {
                   if (chartMode === "daily" && e?.activeLabel) {
                     setSelectedDay(e.activeLabel);
@@ -371,12 +392,40 @@ const generateWeeklyData = (transactions) => {
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="expense" fill="#ef4444" name="รายจ่าย" />
-                <Bar dataKey="income" fill="#22c55e" name="รายรับ" />
+                <XAxis 
+                  dataKey="label" 
+                  tick={{ fontSize: window.innerWidth < 640 ? 10 : 12 }}
+                  angle={window.innerWidth < 640 ? -45 : 0}
+                  textAnchor={window.innerWidth < 640 ? "end" : "middle"}
+                  height={window.innerWidth < 640 ? 60 : 30}
+                />
+                <YAxis 
+                  tick={{ fontSize: window.innerWidth < 640 ? 10 : 12 }}
+                  width={window.innerWidth < 640 ? 35 : 60}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    fontSize: window.innerWidth < 640 ? '11px' : '14px',
+                    padding: window.innerWidth < 640 ? '4px 8px' : '8px 12px'
+                  }}
+                />
+                <Legend 
+                  wrapperStyle={{ 
+                    fontSize: window.innerWidth < 640 ? '11px' : '14px' 
+                  }}
+                />
+                <Bar 
+                  dataKey="expense" 
+                  fill="#ef4444" 
+                  name="รายจ่าย"
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar 
+                  dataKey="income" 
+                  fill="#22c55e" 
+                  name="รายรับ"
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </motion.div>
@@ -386,9 +435,9 @@ const generateWeeklyData = (transactions) => {
   ) : (
     <>
       {/* ✅ หน้าของแนวโน้ม */}
-      <div className="bg-white rounded-xl shadow-md p-4 mb-4">
-        <h3 className="font-bold mb-2">แนวโน้มรายรับ–รายจ่ายรายเดือน</h3>
-        <ResponsiveContainer width="100%" height={240}>
+      <div className="bg-white rounded-xl shadow-md p-3 sm:p-4 mb-4">
+        <h3 className="font-bold mb-2 text-sm sm:text-base">แนวโน้มรายรับ–รายจ่ายรายเดือน</h3>
+        <ResponsiveContainer width="100%" height={200}>
           <LineChart
   data={(() => {
     const months = [
@@ -427,29 +476,28 @@ const generateWeeklyData = (transactions) => {
 
 {/* ✅ พายชาร์ต + หมวดหมู่ที่ใช้เยอะสุดในเดือน */}
 <div className="relative bg-white rounded-2xl shadow-lg 
-  p-4 sm:p-6 md:p-10 mt-4 w-full max-w-full mx-auto 
-  min-h-[auto] md:min-h-[720px]">
+  p-3 sm:p-6 md:p-10 mt-4 w-full max-w-full mx-auto">
 
   {/* 🔹 Layout Responsive: มือถือเรียงลง / คอมแบ่งครึ่ง */}
-  <div className="flex flex-col md:flex-row items-center md:items-start gap-10 md:gap-16">
+  <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-16">
 
     {/* 🔹 ซ้าย: พายชาร์ต */}
     <div className="flex flex-col items-center justify-center w-full md:w-1/2">
-      <h3 className="text-lg md:text-xl font-bold text-blue-800 text-center mb-4">
+      <h3 className="text-base sm:text-lg md:text-xl font-bold text-blue-800 text-center mb-3">
         รายจ่ายหมวดหมู่
       </h3>
 
       {/* ✅ กล่องกรอบกราฟ */}
-   <div className="w-full flex justify-center">
-  <div className="bg-gray-50 border border-gray-200 rounded-xl shadow-sm 
-                  w-[95vw] sm:w-[90vw] md:w-[600px]
-                  aspect-square flex flex-col justify-center items-center 
-                  p-2 sm:p-4 relative">
+      <div className="w-full flex justify-center">
+        <div className="bg-gray-50 border border-gray-200 rounded-xl shadow-sm 
+                        w-full max-w-[380px] sm:max-w-[450px] md:max-w-[600px]
+                        aspect-square flex flex-col justify-center items-center 
+                        p-3 sm:p-4 relative">
           <ResponsiveContainer 
-  width="100%" 
-  height={window.innerWidth < 640 ? 250 : 400}
->
-  <PieChart margin={{ top: 10, right: 10, left: 10, bottom: 60 }}>
+            width="100%" 
+            height="100%"
+          >
+            <PieChart margin={{ top: 5, right: 5, left: 5, bottom: 50 }}>
 
               <Pie
                 data={(() => {
@@ -517,14 +565,23 @@ const generateWeeklyData = (transactions) => {
                       .sort((a, b) => b.value - a.value);
                   }
 
+                  // ✅ Normalize percent ให้รวม 100% พอดี
+                  const percentSum = categories.reduce((sum, c) => sum + c.percent, 0);
+                  if (percentSum !== 100 && categories.length > 0) {
+                    // ปรับตัวสุดท้ายให้รวม 100% พอดี
+                    const diff = 100 - percentSum;
+                    categories[categories.length - 1].percent += diff;
+                  }
+
                   return categories;
                 })()}
                 dataKey="value"
                 nameKey="name"
-                outerRadius="80%"
+                outerRadius="70%"
                 label={({ payload, percent }) =>
-                  `${payload.icon} ${(percent * 100).toFixed(1)}%`
+                  `${payload.icon} ${payload.percent?.toFixed(1) ?? (percent * 100).toFixed(1)}%`
                 }
+                labelLine={false}
               >
                 {[
                   "#ef4444", "#3b82f6", "#eab308", "#a855f7",
@@ -546,26 +603,44 @@ const generateWeeklyData = (transactions) => {
                 }}
               />
 
-              {/* ✅ Legend กลางล่างแบบสวย */}
-             <Legend
-  verticalAlign="bottom"
-  align="center"
-  wrapperStyle={{
-    display: "flex",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: "6px",
-    fontSize: "14px",
-    width: "100%",
-    paddingBottom: "8px",
-    position: "relative",
-  }}
-  iconSize={12}
-  formatter={(value, entry) => `${entry?.payload?.icon || ""}`}
-/>
-
-              
+              {/* ✅ Legend กลางล่างแบบสวยพร้อมสี */}
+              <Legend
+                verticalAlign="bottom"
+                align="center"
+                wrapperStyle={(() => {
+                  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+                  return {
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '11px',
+                    width: '100%',
+                    maxWidth: isMobile ? '98vw' : '320px',
+                    marginTop: isMobile ? '12px' : '24px',
+                    marginBottom: '0',
+                    rowGap: '2px',
+                    marginLeft: 'auto',
+                    marginRight: 'auto',
+                    textAlign: 'center',
+                  };
+                })()}
+                iconSize={10}
+                iconType="circle"
+                formatter={(value, entry) => {
+                  const payload = entry?.payload;
+                  return (
+                    <span style={{ 
+                      color: payload?.color || "#6b7280",
+                      fontWeight: "500",
+                      fontSize: "11px"
+                    }}>
+                      {payload?.icon || "📦"} {payload?.name || value}
+                    </span>
+                  );
+                }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -573,10 +648,10 @@ const generateWeeklyData = (transactions) => {
     </div>
 
     {/* 🔹 ขวา: หมวดหมู่ที่ใช้เยอะสุดในเดือน */}
-<div className="flex flex-col items-center w-full md:w-1/2 text-center">
-  <h3 className="text-lg md:text-xl font-bold mb-4 text-blue-800">
-    หมวดหมู่ที่ใช้เยอะสุดในเดือนนี้
-  </h3>
+    <div className="flex flex-col items-center w-full md:w-1/2 text-center">
+      <h3 className="text-base sm:text-lg md:text-xl font-bold mb-3 text-blue-800">
+        หมวดหมู่ที่ใช้เยอะสุดในเดือนนี้
+      </h3>
   {(() => {
     // ✅ ใช้ข้อมูลเดียวกับ PieChart
     const saved = sessionStorage.getItem("aiResult");
@@ -620,25 +695,25 @@ const generateWeeklyData = (transactions) => {
 
     // ✅ แสดงลิสต์หมวดจากมากไปน้อย
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 md:p-5 w-full max-w-[380px] md:max-w-[420px]">
+      <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 sm:p-4 md:p-5 w-full max-w-full">
         {categories.map((cat, i) => (
           <div
             key={cat.name}
-            className={`flex justify-between items-center py-1 ${
+            className={`flex justify-between items-center py-1.5 sm:py-2 ${
               i === 0 ? "font-bold text-red-600" : "text-gray-700"
             }`}
           >
-            <span className="flex items-center">
-              <span className="text-gray-400 mr-2">{i + 1}.</span>
-              {cat.icon} {cat.name}
+            <span className="flex items-center text-xs sm:text-sm">
+              <span className="text-gray-400 mr-1.5 sm:mr-2 text-xs">{i + 1}.</span>
+              <span className="mr-1">{cat.icon}</span>
+              <span className="truncate max-w-[120px] sm:max-w-none">{cat.name}</span>
             </span>
-<span className="text-sm text-gray-600">
-  {cat.value.toLocaleString()} บาท{" "}
-  <span className="text-gray-400 font-medium">
-    ({((cat.value / categories.reduce((a, b) => a + b.value, 0)) * 100).toFixed(1)}%)
-  </span>
-</span>
-
+            <span className="text-xs sm:text-sm text-gray-600 ml-2 flex-shrink-0">
+              {cat.value.toLocaleString()} บาท{" "}
+              <span className="text-gray-400 font-medium hidden sm:inline">
+                ({((cat.value / categories.reduce((a, b) => a + b.value, 0)) * 100).toFixed(1)}%)
+              </span>
+            </span>
           </div>
         ))}
       </div>
@@ -702,7 +777,7 @@ const generateWeeklyData = (transactions) => {
           >
             <div className="bg-gradient-to-br from-blue-50 to-white border border-blue-100 rounded-xl shadow-md p-5 mb-6">
               <div className="flex justify-between items-center mb-5 flex-wrap gap-3">
-                <h3 className="text-lg font-bold text-blue-700">
+                <h3 className="text-base sm:text-lg font-bold text-blue-700">
                   {chartMode === "daily"
                     ? `รายการของวัน (${selectedDay})`
                     : chartMode === "weekly"
@@ -730,7 +805,7 @@ const generateWeeklyData = (transactions) => {
                 {/* ✅ ปุ่มพับเก็บ */}
                 <button
                   onClick={() => setShowDetails(false)}
-                  className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full text-sm font-semibold transition"
+                  className="px-2 sm:px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-full text-xs sm:text-sm font-semibold transition"
                 >
                    ▲
                 </button>
@@ -740,7 +815,7 @@ const generateWeeklyData = (transactions) => {
               <div className="flex gap-2 mb-4">
                 <button
                   onClick={() => setViewType("expense")}
-                  className={`px-5 py-2 rounded-full text-sm font-semibold ${
+                  className={`px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold ${
                     viewType === "expense"
                       ? "bg-red-500 text-white"
                       : "bg-gray-200 text-gray-600"
@@ -750,7 +825,7 @@ const generateWeeklyData = (transactions) => {
                 </button>
                 <button
                   onClick={() => setViewType("income")}
-                  className={`px-5 py-2 rounded-full text-sm font-semibold ${
+                  className={`px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold ${
                     viewType === "income"
                       ? "bg-green-500 text-white"
                       : "bg-gray-200 text-gray-600"
@@ -789,35 +864,45 @@ const generateWeeklyData = (transactions) => {
             dayNames[dateObj.getDay()] === selectedDay &&
             t.type === viewType
           );
-      } else if (chartMode === "weekly" && selectedWeek && t.type === viewType) {
-  const dateObj = t.date?.toDate?.() || new Date(t.date);
+        } else if (chartMode === "weekly" && selectedWeek && t.type === viewType) {
+          const dateObj = t.date?.toDate?.() || new Date(t.date);
 
-  // 🔹 เดือนและปีของธุรกรรม
-  const thisMonth = dateObj.getMonth();
-  const thisYear = dateObj.getFullYear();
+          // 🔹 เดือนและปีของธุรกรรม
+          const thisMonth = dateObj.getMonth();
+          const thisYear = dateObj.getFullYear();
 
-  // 🔹 วันแรกของเดือน
-  const startOfMonth = new Date(thisYear, thisMonth, 1);
+          // 🔹 วันแรกของเดือน
+          const startOfMonth = new Date(thisYear, thisMonth, 1);
 
-  // 🔹 หาวันอาทิตย์แรกของเดือน (ก่อนหรือเท่ากับวันที่ 1)
-  const firstSunday = new Date(startOfMonth);
-  firstSunday.setDate(startOfMonth.getDate() - startOfMonth.getDay());
-  firstSunday.setHours(0, 0, 0, 0);
+          // 🔹 หาวันอาทิตย์แรกของเดือน (ก่อนหรือเท่ากับวันที่ 1)
+          const firstSunday = new Date(startOfMonth);
+          firstSunday.setDate(startOfMonth.getDate() - startOfMonth.getDay());
+          firstSunday.setHours(0, 0, 0, 0);
 
-  // 🔹 เริ่มต้นสัปดาห์ที่เลือก (อาทิตย์–เสาร์)
-  const startOfWeek = new Date(firstSunday);
-  startOfWeek.setDate(firstSunday.getDate() + (selectedWeek - 1) * 7);
-  startOfWeek.setHours(0, 0, 0, 0);
+          // 🔹 เริ่มต้นสัปดาห์ที่เลือก (อาทิตย์–เสาร์)
+          const startOfWeek = new Date(firstSunday);
+          startOfWeek.setDate(firstSunday.getDate() + (selectedWeek - 1) * 7);
+          startOfWeek.setHours(0, 0, 0, 0);
 
-  // 🔹 สิ้นสุดสัปดาห์ (เสาร์)
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  endOfWeek.setHours(23, 59, 59, 999);
+          // 🔹 สิ้นสุดสัปดาห์ (เสาร์)
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6);
+          endOfWeek.setHours(23, 59, 59, 999);
 
-  // ✅ ตรวจว่าธุรกรรมอยู่ในช่วงของสัปดาห์ที่เลือกไหม
-  return dateObj >= startOfWeek && dateObj <= endOfWeek;
-}
-
+          // ✅ ตรวจว่าธุรกรรมอยู่ในช่วงของสัปดาห์ที่เลือกไหม
+          return dateObj >= startOfWeek && dateObj <= endOfWeek;
+        } else if (chartMode === "monthly" && selectedMonth !== null && t.type === viewType) {
+          // ✅ เพิ่มการ filter สำหรับรายเดือน
+          const dateObj = t.date?.toDate?.() || new Date(t.date);
+          const now = new Date();
+          
+          return (
+            dateObj.getMonth() === selectedMonth &&
+            dateObj.getFullYear() === now.getFullYear()
+          );
+        }
+        
+        return false;
       })
       .map((t, i) => {
         const dateObj = t.date?.toDate?.() || new Date(t.date);
@@ -833,16 +918,16 @@ const generateWeeklyData = (transactions) => {
         return (
           <div
             key={i}
-            className="grid grid-cols-[1fr,120px,100px] items-center py-2 border-b border-blue-100"
+            className="grid grid-cols-[1fr,80px,80px] sm:grid-cols-[1fr,120px,100px] items-center py-2 border-b border-blue-100 gap-2"
           >
             {/* 🔹 ชื่อรายการ */}
-            <span className="font-medium text-gray-800 truncate">
+            <span className="font-medium text-gray-800 truncate text-xs sm:text-sm">
               {t.name}
             </span>
 
             {/* 🔹 จำนวนเงิน */}
             <span
-              className={`font-semibold tabular-nums text-center ${
+              className={`font-semibold tabular-nums text-center text-xs sm:text-sm ${
                 t.type === "income" ? "text-green-600" : "text-red-600"
               }`}
             >
@@ -851,7 +936,7 @@ const generateWeeklyData = (transactions) => {
             </span>
 
             {/* 🔹 วันที่ */}
-            <span className="text-gray-400 text-xs text-right">
+            <span className="text-gray-400 text-[10px] sm:text-xs text-right">
               {dateStr} {timeStr}
             </span>
           </div>
@@ -862,13 +947,13 @@ const generateWeeklyData = (transactions) => {
 
 
   {/* ✅ รวมยอดตามช่วงจริง (รายวัน / รายสัปดาห์ / รายเดือน) */}
-<div className="flex justify-between mt-4 border-t border-blue-200 pt-3 text-sm font-semibold">
+<div className="flex flex-col sm:flex-row sm:justify-between gap-2 sm:gap-0 mt-4 border-t border-blue-200 pt-3 text-xs sm:text-sm font-semibold">
   {/* ✅ รายรับ */}
   <span className="text-green-600">
     {chartMode === "daily"
       ? `รายรับรวมของวัน: +`
       : chartMode === "weekly"
-      ? `รายรับรวมของสัปดาห์ที่ ${selectedWeek || ""}: +`
+      ? `รายรับสัปดาห์ที่ ${selectedWeek || ""}: +`
       : "รายรับรวมของเดือน: +"}
 
     {(() => {

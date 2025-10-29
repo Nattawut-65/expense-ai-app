@@ -11,11 +11,15 @@ import { LockClosedIcon } from "@heroicons/react/24/solid";
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null); // สำหรับแสดงข้อความ
+  const [error, setError] = useState(null); // สำหรับแสดง error
   const router = useRouter();
 
   const handleReset = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setMessage(null);
+    setError(null);
 
     try {
       // ✅ ตรวจว่าอีเมลนี้อยู่ในระบบไหม
@@ -24,7 +28,7 @@ export default function ForgotPasswordPage() {
 
       // ❌ ไม่พบในระบบเลย
       if (signInMethods.length === 0) {
-        alert("❌ ไม่พบอีเมลนี้ในระบบ");
+        setError("❌ ไม่พบอีเมลนี้ในระบบ กรุณาตรวจสอบอีเมลของคุณอีกครั้ง");
         setLoading(false);
         return;
       }
@@ -34,8 +38,8 @@ export default function ForgotPasswordPage() {
         signInMethods.includes("google.com") &&
         !signInMethods.includes("password")
       ) {
-        alert(
-          "⚠️ บัญชีนี้เข้าสู่ระบบด้วย Google โปรดรีเซ็ตรหัสผ่านจากบัญชี Google ของคุณโดยตรง"
+        setError(
+          "⚠️ บัญชีนี้เข้าสู่ระบบด้วย Google เท่านั้น\nโปรดรีเซ็ตรหัสผ่านจากบัญชี Google ของคุณโดยตรง"
         );
         setLoading(false);
         return;
@@ -44,17 +48,25 @@ export default function ForgotPasswordPage() {
       // ✅ ถ้าเป็น Email/Password → ส่งลิงก์รีเซ็ต
       if (signInMethods.includes("password")) {
         await sendPasswordResetEmail(auth, email);
-        alert("✅ ระบบได้ส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลแล้ว");
-        router.push("/login");
+        setMessage(
+          `✅ ส่งอีเมลรีเซ็ตรหัสผ่านสำเร็จ!\n\nกรุณาตรวจสอบอีเมล ${email} และคลิกลิงก์ที่ได้รับเพื่อตั้งรหัสผ่านใหม่\n\n📧 หากไม่เห็นอีเมล กรุณาตรวจสอบในโฟลเดอร์ Spam/Junk`
+        );
+        
+        // เปลี่ยนหน้าหลังจาก 5 วินาที
+        setTimeout(() => {
+          router.push("/login");
+        }, 5000);
       } else {
-        alert("❌ บัญชีนี้ไม่รองรับการรีเซ็ตรหัสผ่านผ่านอีเมล");
+        setError("❌ บัญชีนี้ไม่รองรับการรีเซ็ตรหัสผ่านผ่านอีเมล");
       }
     } catch (error) {
       console.error("Firebase Error:", error);
       if (error.code === "auth/invalid-email") {
-        alert("❌ รูปแบบอีเมลไม่ถูกต้อง");
+        setError("❌ รูปแบบอีเมลไม่ถูกต้อง กรุณากรอกอีเมลที่ถูกต้อง");
+      } else if (error.code === "auth/network-request-failed") {
+        setError("⚠️ ไม่สามารถเชื่อมต่ออินเทอร์เน็ตได้ กรุณาตรวจสอบการเชื่อมต่อ");
       } else {
-        alert("⚠️ เกิดข้อผิดพลาด: " + error.message);
+        setError("⚠️ เกิดข้อผิดพลาด: " + error.message);
       }
     } finally {
       setLoading(false);
@@ -80,6 +92,24 @@ export default function ForgotPasswordPage() {
 
           {/* Form */}
           <form onSubmit={handleReset}>
+            {/* แสดงข้อความสำเร็จ */}
+            {message && (
+              <div className="mb-4 p-4 bg-green-50 border border-green-300 rounded-lg">
+                <p className="text-sm text-green-800 whitespace-pre-line font-medium">
+                  {message}
+                </p>
+              </div>
+            )}
+
+            {/* แสดง Error */}
+            {error && (
+              <div className="mb-4 p-4 bg-red-50 border border-red-300 rounded-lg">
+                <p className="text-sm text-red-800 whitespace-pre-line font-medium">
+                  {error}
+                </p>
+              </div>
+            )}
+
             <label className="block text-sm font-medium text-gray-700 mb-1">
               อีเมล
             </label>
@@ -92,18 +122,19 @@ export default function ForgotPasswordPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading || message}
             />
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || message}
               className={`w-full text-white py-3 rounded-lg font-medium transition duration-200 ${
-                loading
+                loading || message
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-blue-600 hover:bg-blue-700"
               }`}
             >
-              {loading ? "กำลังตรวจสอบ..." : "ส่งลิงก์รีเซ็ตรหัสผ่าน"}
+              {loading ? "⏳ กำลังส่งอีเมล..." : message ? "✅ ส่งอีเมลแล้ว" : "📧 ส่งลิงก์รีเซ็ตรหัสผ่าน"}
             </button>
           </form>
 
