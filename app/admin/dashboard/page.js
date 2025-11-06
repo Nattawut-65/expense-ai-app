@@ -257,19 +257,19 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-gradient-to-b from-purple-500 to-purple-700">
       {/* Header */}
       <div className="bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="max-w-7xl mx-auto px-2 py-3 flex flex-col sm:flex-row justify-between items-center gap-2 sm:gap-0">
           <div className="flex items-center gap-3">
             <div className="bg-purple-100 p-2 rounded-full">
               <span className="text-2xl">👑</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-sm text-gray-600">ยินดีต้อนรับ, {adminData?.displayName}</p>
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900">Admin Dashboard</h1>
+              <p className="text-xs sm:text-sm text-gray-600">ยินดีต้อนรับ, {adminData?.displayName}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
+            className="bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition text-sm sm:text-base"
           >
             ออกจากระบบ
           </button>
@@ -277,11 +277,11 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tabs */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex gap-4 mb-6 overflow-x-auto">
+      <div className="max-w-7xl mx-auto px-2 py-4">
+        <div className="flex gap-2 mb-4 overflow-x-auto flex-nowrap">
           <button
             onClick={() => setActiveTab("overview")}
-            className={`px-6 py-3 rounded-lg font-medium transition whitespace-nowrap ${
+            className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap text-xs sm:text-base ${
               activeTab === "overview"
                 ? "bg-white text-purple-600 shadow-lg"
                 : "bg-purple-400 text-white hover:bg-purple-300"
@@ -291,7 +291,7 @@ export default function AdminDashboard() {
           </button>
           <button
             onClick={() => setActiveTab("users")}
-            className={`px-6 py-3 rounded-lg font-medium transition whitespace-nowrap ${
+            className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap text-xs sm:text-base ${
               activeTab === "users"
                 ? "bg-white text-purple-600 shadow-lg"
                 : "bg-purple-400 text-white hover:bg-purple-300"
@@ -301,7 +301,7 @@ export default function AdminDashboard() {
           </button>
           <button
             onClick={() => setActiveTab("analytics")}
-            className={`px-6 py-3 rounded-lg font-medium transition whitespace-nowrap ${
+            className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap text-xs sm:text-base ${
               activeTab === "analytics"
                 ? "bg-white text-purple-600 shadow-lg"
                 : "bg-purple-400 text-white hover:bg-purple-300"
@@ -311,7 +311,7 @@ export default function AdminDashboard() {
           </button>
           <button
             onClick={() => setActiveTab("adminRequests")}
-            className={`px-6 py-3 rounded-lg font-medium transition whitespace-nowrap ${
+            className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap text-xs sm:text-base ${
               activeTab === "adminRequests"
                 ? "bg-white text-purple-600 shadow-lg"
                 : "bg-purple-400 text-white hover:bg-purple-300"
@@ -321,7 +321,7 @@ export default function AdminDashboard() {
           </button>
           <button
             onClick={() => setActiveTab("suggestions")}
-            className={`px-6 py-3 rounded-lg font-medium transition whitespace-nowrap ${
+            className={`px-4 py-2 rounded-lg font-medium transition whitespace-nowrap text-xs sm:text-base ${
               activeTab === "suggestions"
                 ? "bg-white text-purple-600 shadow-lg"
                 : "bg-purple-400 text-white hover:bg-purple-300"
@@ -334,7 +334,7 @@ export default function AdminDashboard() {
         {/* Overview Tab */}
         {activeTab === "overview" && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div 
               onClick={() => setShowAdminList(true)}
               className="bg-white rounded-xl shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all hover:scale-105"
@@ -615,14 +615,14 @@ export default function AdminDashboard() {
         {activeTab === "users" && (
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[600px] text-xs sm:text-sm">
                 <thead className="bg-purple-600 text-white">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">ลำดับ</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">อีเมล</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">ชื่อผู้ใช้</th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold">จำนวนรายการ</th>
-                    <th className="px-6 py-4 text-left text-sm font-semibold">สร้างเมื่อ</th>
+                    <th className="px-3 py-2 sm:px-6 sm:py-4 text-left font-semibold">ลำดับ</th>
+                    <th className="px-3 py-2 sm:px-6 sm:py-4 text-left font-semibold">อีเมล</th>
+                    <th className="px-3 py-2 sm:px-6 sm:py-4 text-left font-semibold">ชื่อผู้ใช้</th>
+                    <th className="px-3 py-2 sm:px-6 sm:py-4 text-center font-semibold">จำนวนรายการ</th>
+                    <th className="px-3 py-2 sm:px-6 sm:py-4 text-left font-semibold">สร้างเมื่อ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -636,17 +636,17 @@ export default function AdminDashboard() {
                     })
                     .map((user, index) => (
                       <tr key={user.id} className="hover:bg-purple-50 transition">
-                        <td className="px-6 py-4 text-sm text-gray-900">{index + 1}</td>
-                        <td className="px-6 py-4 text-sm text-gray-900">{user.email}</td>
-                        <td className="px-6 py-4 text-sm text-gray-900">
+                        <td className="px-3 py-2 sm:px-6 sm:py-4 text-gray-900">{index + 1}</td>
+                        <td className="px-3 py-2 sm:px-6 sm:py-4 text-gray-900">{user.email}</td>
+                        <td className="px-3 py-2 sm:px-6 sm:py-4 text-gray-900">
                           {user.displayName}
                         </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+                        <td className="px-3 py-2 sm:px-6 sm:py-4 text-center">
+                          <span className="bg-purple-100 text-purple-800 px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-medium">
                             {user.transactionCount}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
+                        <td className="px-3 py-2 sm:px-6 sm:py-4 text-gray-600">
                           {typeof user.createdAt === 'object' && user.createdAt?.toDate
                             ? user.createdAt.toDate().toLocaleDateString('th-TH')
                             : user.createdAt}
@@ -661,7 +661,7 @@ export default function AdminDashboard() {
                 );
                 return !isAdmin;
               }).length === 0 && (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-gray-500 text-xs sm:text-base">
                   ไม่มีข้อมูลผู้ใช้
                 </div>
               )}
@@ -1015,38 +1015,51 @@ export default function AdminDashboard() {
                             const maxExpenseMonth = monthlyData.reduce((max, curr) => curr.amount > max.amount ? curr : max, monthlyData[0] || { amount: 0 });
                             
                             return (
-                              <div className="grid grid-cols-3 gap-3">
-                                {/* ซ้าย: เดือนที่ใช้มากที่สุด */}
-                                <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-lg p-3 border-2 border-red-200">
-                                  <p className="text-xs text-gray-600 mb-1">🔥 เดือนที่ใช้มากที่สุด</p>
-                                  <p className="text-lg font-bold text-red-600">{maxExpenseMonth.monthName}</p>
-                                  <p className="text-sm text-gray-700">฿{maxExpenseMonth.amount.toLocaleString()}</p>
-                                </div>
+                           <div className="grid grid-cols-3 gap-3 mb-4 items-stretch text-center">
+  {/* 🔹 ซ้าย: เดือนที่ใช้มากที่สุด */}
+  <div className="flex flex-col justify-between bg-gradient-to-r from-red-50 to-orange-50 rounded-lg p-2 sm:p-3 border-2 border-red-200 h-full">
+    <p className="text-[10px] sm:text-xs text-gray-600 mb-1 leading-tight">
+      🔥 เดือนที่ใช้มากที่สุด
+    </p>
+    <p className="text-base sm:text-lg md:text-xl font-bold text-red-600 leading-tight">
+      {maxExpenseMonth.monthName}
+    </p>
+    <p className="text-xs sm:text-sm text-gray-700 leading-tight">
+      ฿{maxExpenseMonth.amount.toLocaleString()}
+    </p>
+  </div>
 
-                                {/* กลาง: รายจ่ายเดือนนี้ (รีเซ็ตทุกเดือน) */}
-                                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-3 border-2 border-purple-200">
-                                  <p className="text-xs text-gray-600 mb-1">💰 รายจ่ายเดือนนี้</p>
-                                  <p className="text-lg font-bold text-purple-600">
-                                    ฿{(() => {
-                                      const now = new Date();
-                                      const thisMonth = now.getMonth();
-                                      const thisYear = now.getFullYear();
-                                      const thisMonthAmount = transactions.filter(t =>
-                                        t.date?.toDate &&
-                                        t.date.toDate().getFullYear() === thisYear &&
-                                        t.date.toDate().getMonth() === thisMonth
-                                      ).reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-                                      return thisMonthAmount.toLocaleString();
-                                    })()}
-                                  </p>
-                                </div>
+  {/* 🔹 กลาง: รายจ่ายเดือนนี้ */}
+  <div className="flex flex-col justify-between bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-2 sm:p-3 border-2 border-purple-200 h-full">
+    <p className="text-[10px] sm:text-xs text-gray-600 mb-1 leading-tight">
+      💰 รายจ่ายเดือนนี้
+    </p>
+    <p className="text-base sm:text-lg md:text-xl font-bold text-purple-600 leading-tight">
+      ฿{(() => {
+        const now = new Date();
+        const thisMonth = now.getMonth();
+        const thisYear = now.getFullYear();
+        const thisMonthAmount = transactions.filter(t =>
+          t.date?.toDate &&
+          t.date.toDate().getFullYear() === thisYear &&
+          t.date.toDate().getMonth() === thisMonth
+        ).reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+        return thisMonthAmount.toLocaleString();
+      })()}
+    </p>
+  </div>
 
-                                {/* ขวา: รายจ่ายรวมทั้งปี */}
-                                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-3 border-2 border-blue-200">
-                                  <p className="text-xs text-gray-600 mb-1">💰 รายจ่ายรวมทั้งปี {year}</p>
-                                  <p className="text-lg font-bold text-blue-600">฿{totalAmount.toLocaleString()}</p>
-                                </div>
-                              </div>
+  {/* 🔹 ขวา: รายจ่ายรวมทั้งปี */}
+  <div className="flex flex-col justify-between bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-2 sm:p-3 border-2 border-blue-200 h-full">
+    <p className="text-[10px] sm:text-xs text-gray-600 mb-1 leading-tight">
+      💰 รายจ่ายรวมทั้งปี {year}
+    </p>
+    <p className="text-base sm:text-lg md:text-xl font-bold text-blue-600 leading-tight">
+      ฿{totalAmount.toLocaleString()}
+    </p>
+  </div>
+</div>
+
                             );
                           })()}
                         </div>

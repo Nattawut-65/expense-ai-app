@@ -2,26 +2,19 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // ⚙️ ปิด output export เพื่อให้ API Routes ทำงาน (จำเป็นสำหรับ OCR server)
-  output: undefined,
-
-  images: {
-    unoptimized: true, // ปิด optimize รูป (ทำให้ dev/build เร็วขึ้น)
-  },
-
-  experimental: {
-    workerThreads: false, // ปิด worker script (แก้ error ของ tesseract.js)
-    wasmMemory: false,
-  },
-
-  webpack: (config) => {
-    // ✅ ป้องกัน error worker-script และ fs/path module
-    config.resolve.fallback = {
-      fs: false,
-      path: false,
-      worker_threads: false,
-    };
-    return config;
+  async headers() {
+    return [
+      {
+        // ให้ทุก request รองรับ CORS
+        source: "/(.*)",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "http://localhost:3000" },
+          { key: "Access-Control-Allow-Origin", value: "http://192.168.8.104:3000" },
+          { key: "Access-Control-Allow-Methods", value: "GET,POST,PUT,DELETE,OPTIONS" },
+          { key: "Access-Control-Allow-Headers", value: "Content-Type, Authorization" },
+        ],
+      },
+    ];
   },
 };
 

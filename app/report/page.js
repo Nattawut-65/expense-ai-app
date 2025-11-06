@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import BottomNav from "@/components/BottomNav";
 import { auth, db } from "@/lib/firebase";
@@ -28,6 +28,18 @@ import {
 } from "recharts";
 import { useTheme } from "@/contexts/ThemeContext";
 
+const CATEGORY_MAP = {
+  "อาหาร/เครื่องดื่ม": { icon: "🍜", color: "#ef4444" },
+  "ค่าที่อยู่อาศัย/เครื่องใช้": { icon: "🏠", color: "#3b82f6" },
+  "ยานพาหนะ/การเดินทาง": { icon: "🚗", color: "#eab308" },
+  "เสื้อผ้า/รองเท้า": { icon: "👗", color: "#a855f7" },
+  "การสื่อสาร": { icon: "📞", color: "#ec4899" },
+  "การศึกษา": { icon: "🎓", color: "#22c55e" },
+  "เวชภัณฑ์/ค่ารักษา": { icon: "💊", color: "#14b8a6" },
+  "บันเทิง": { icon: "🎉", color: "#f97316" },
+  "อื่นๆ": { icon: "📦", color: "#6b7280" },
+};
+
 export default function ReportPage() {
   const { theme } = useTheme();
   // ✅ ตัวแปรสถานะทั้งหมด
@@ -45,6 +57,222 @@ export default function ReportPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [activeTab, setActiveTab] = useState("report"); // 🔹 บรรทัดนี้เพิ่มหลัง export
   const [realtimeCategories, setRealtimeCategories] = useState([]); // ✅ เพิ่มใหม่
+  const savedAiResult =
+    typeof window !== "undefined" ? sessionStorage.getItem("aiResult") : null;
+
+  const pieChartData = useMemo(() => {
+    const toNumber = (value) => {
+      const num = Number(value);
+      return Number.isFinite(num) ? num : 0;
+    };
+
+    let categories = [];
+
+    if (savedAiResult) {
+      try {
+        const parsed = JSON.parse(savedAiResult);
+        if (Array.isArray(parsed?.categories) && parsed.categories.length > 0) {
+          categories = parsed.categories
+            .map((entry) => {
+              const amount = toNumber(entry.amount ?? entry.value);
+              return {
+                name: entry.name,
+                icon: CATEGORY_MAP[entry.name]?.icon || "📦",
+                color: CATEGORY_MAP[entry.name]?.color || "#6b7280",
+                value: amount,
+              };
+            })
+            .filter((item) => item.value > 0)
+            .sort((a, b) => b.value - a.value);
+        }
+      } catch (err) {
+        console.warn("Failed to parse aiResult for pie chart:", err);
+      }
+    }
+
+    if (categories.length === 0) {
+      const now = new Date();
+      const thisMonth = now.getMonth();
+      const thisYear = now.getFullYear();
+      const totals = {};
+
+      allTransactions.forEach((t) => {
+        const d = t.date?.toDate?.() || new Date(t.date);
+        if (
+          t.type === "expense" &&
+          d.getMonth() === thisMonth &&
+          d.getFullYear() === thisYear
+        ) {
+          const name = t.category || "อื่นๆ";
+          const amount = toNumber(t.amount);
+          totals[name] = (totals[name] || 0) + amount;
+        }
+      });
+
+      categories = Object.entries(totals)
+        .map(([name, value]) => ({
+          name,
+          icon: CATEGORY_MAP[name]?.icon || "📦",
+          color: CATEGORY_MAP[name]?.color || "#6b7280",
+          value: toNumber(value),
+        }))
+        .filter((item) => item.value > 0)
+        .sort((a, b) => b.value - a.value);
+    }
+
+    const totalValue = categories.reduce((sum, item) => sum + item.value, 0);
+    if (totalValue <= 0) {
+      return categories.map((item) => ({ ...item, percent: 0 }));
+    }
+
+    const withPercent = categories.map((item) => ({
+      ...item,
+      percent: (item.value / totalValue) * 100,
+    }));
+
+    const percentSum = withPercent.reduce((sum, item) => sum + item.percent, 0);
+    if (withPercent.length > 0 && Math.abs(percentSum - 100) > 0.1) {
+      const lastIndex = withPercent.length - 1;
+      withPercent[lastIndex] = {
+        ...withPercent[lastIndex],
+        percent: withPercent[lastIndex].percent + (100 - percentSum),
+      };
+    }
+
+    return withPercent;
+  }, [allTransactions, savedAiResult]);
+
+  const generateDailyData = useCallback((transactions) => {
+    const dayNames = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสฯ", "ศุกร์", "เสาร์"];
+    const today = new Date();
+
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay() + weekOffset * 7);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    const daily = dayNames.map((day, index) => {
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + index);
+
+      const dayTransactions = transactions.filter((t) => {
+        const d = t.date?.toDate?.() || new Date(t.date);
+        return d >= startOfWeek && d <= endOfWeek && d.getDay() === date.getDay();
+      });
+
+      const income = dayTransactions
+        .filter((t) => t.type === "income")
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const expense = dayTransactions
+        .filter((t) => t.type === "expense")
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      return { label: day, income, expense };
+    });
+
+    setData(daily);
+
+    console.log(
+      `📅 ช่วงสัปดาห์ (รายวัน): ${startOfWeek.toLocaleDateString("th-TH")} – ${endOfWeek.toLocaleDateString("th-TH")}`
+    );
+  }, [weekOffset]);
+
+  const generateWeeklyData = useCallback((transactions) => {
+    const now = new Date();
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
+
+    const startOfMonth = new Date(thisYear, thisMonth, 1);
+    const endOfMonth = new Date(thisYear, thisMonth + 1, 0);
+    const weeks = [];
+
+    let currentStart = new Date(startOfMonth);
+    currentStart.setDate(startOfMonth.getDate() - startOfMonth.getDay());
+    currentStart.setHours(0, 0, 0, 0);
+
+    let weekCount = 1;
+    while (currentStart <= endOfMonth) {
+      const weekEnd = new Date(currentStart);
+      weekEnd.setDate(currentStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      const weekTransactions = transactions.filter((t) => {
+        const d = t.date?.toDate?.() || new Date(t.date);
+        return d >= currentStart && d <= weekEnd;
+      });
+
+      const income = weekTransactions
+        .filter((t) => t.type === "income")
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const expense = weekTransactions
+        .filter((t) => t.type === "expense")
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      weeks.push({
+        label: `สัปดาห์ที่ ${weekCount}`,
+        income,
+        expense,
+      });
+
+      currentStart.setDate(currentStart.getDate() + 7);
+      weekCount++;
+    }
+
+    console.log("📅 Weekly breakdown (อาทิตย์–เสาร์):");
+    weeks.forEach((w, i) => {
+      console.log(
+        `${w.label}: ${new Date(
+          thisYear,
+          thisMonth,
+          1 + i * 7
+        ).toLocaleDateString("th-TH")} - ${new Date(
+          thisYear,
+          thisMonth,
+          1 + i * 7 + 6
+        ).toLocaleDateString("th-TH")}`
+      );
+    });
+
+    setData(weeks);
+  }, []);
+
+  const generateMonthlyData = useCallback((transactions) => {
+    const months = [
+      "ม.ค.",
+      "ก.พ.",
+      "มี.ค.",
+      "เม.ย.",
+      "พ.ค.",
+      "มิ.ย.",
+      "ก.ค.",
+      "ส.ค.",
+      "ก.ย.",
+      "ต.ค.",
+      "พ.ย.",
+      "ธ.ค.",
+    ];
+
+    const monthly = months.map((m, i) => ({
+      label: m,
+      income: 0,
+      expense: 0,
+      monthIndex: i,
+    }));
+
+    transactions.forEach((t) => {
+      const dateObj = t.date?.toDate?.() || new Date(t.date);
+      const monthIndex = dateObj.getMonth();
+      if (t.type === "income") monthly[monthIndex].income += t.amount;
+      else if (t.type === "expense") monthly[monthIndex].expense += t.amount;
+    });
+
+    setData(monthly);
+  }, []);
 
 
  // ✅ โหลดข้อมูลจาก Firebase
@@ -81,7 +309,7 @@ useEffect(() => {
   });
 
   return () => unsubscribe();
-}, [chartMode, weekOffset]);
+}, [chartMode, weekOffset, generateDailyData, generateWeeklyData, generateMonthlyData]);
   // ✅ ตรวจเปลี่ยนเดือนอัตโนมัติ
   useEffect(() => {
     const interval = setInterval(() => {
@@ -95,149 +323,6 @@ useEffect(() => {
   }, [currentMonth]);
 
   // ✅ สร้างข้อมูลรายวัน
-  // ✅ สร้างข้อมูลรายวัน (อิงตามสัปดาห์จริง: อาทิตย์–เสาร์)
-const generateDailyData = (transactions) => {
-  const dayNames = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัสฯ", "ศุกร์", "เสาร์"];
-  const today = new Date();
-
-  // 🗓 หาวันอาทิตย์แรกของสัปดาห์ (อาทิตย์ = 0)
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay() + weekOffset * 7);
-  startOfWeek.setHours(0, 0, 0, 0);
-
-  // 🗓 วันเสาร์สุดท้ายของสัปดาห์
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
-  endOfWeek.setHours(23, 59, 59, 999);
-
-  // ✅ รวมข้อมูลแต่ละวันในช่วงอาทิตย์–เสาร์
-  const daily = dayNames.map((day, index) => {
-    const date = new Date(startOfWeek);
-    date.setDate(startOfWeek.getDate() + index);
-
-    const dayTransactions = transactions.filter((t) => {
-      const d = t.date?.toDate?.() || new Date(t.date);
-      return (
-        d >= startOfWeek &&
-        d <= endOfWeek &&
-        d.getDay() === date.getDay()
-      );
-    });
-
-    const income = dayTransactions
-      .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const expense = dayTransactions
-      .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    return { label: day, income, expense };
-  });
-
-  setData(daily);
-
-  // ✅ log สำหรับเช็กช่วงสัปดาห์ใน console
-  console.log(
-    `📅 ช่วงสัปดาห์ (รายวัน): ${startOfWeek.toLocaleDateString("th-TH")} – ${endOfWeek.toLocaleDateString("th-TH")}`
-  );
-};
-
-
-  // ✅ สร้างข้อมูลรายสัปดาห์ (อิงสัปดาห์จริง อาทิตย์–เสาร์)
-const generateWeeklyData = (transactions) => {
-  const now = new Date();
-  const thisMonth = now.getMonth();
-  const thisYear = now.getFullYear();
-
-  // 🔹 หาวันแรกและวันสุดท้ายของเดือนนี้
-  const startOfMonth = new Date(thisYear, thisMonth, 1);
-  const endOfMonth = new Date(thisYear, thisMonth + 1, 0);
-  const weeks = [];
-
-  // 🔹 หาวันอาทิตย์แรกที่อยู่ก่อนหรือเท่ากับวันแรกของเดือน
-  let currentStart = new Date(startOfMonth);
-  currentStart.setDate(
-    startOfMonth.getDate() - startOfMonth.getDay()
-  );
-  currentStart.setHours(0, 0, 0, 0);
-
-  // 🔹 วนจนถึงวันสุดท้ายของเดือน (สัปดาห์ละ 7 วัน)
-  let weekCount = 1;
-  while (currentStart <= endOfMonth) {
-    const weekEnd = new Date(currentStart);
-    weekEnd.setDate(currentStart.getDate() + 6);
-    weekEnd.setHours(23, 59, 59, 999);
-
-    // ✅ คัดธุรกรรมในช่วงอาทิตย์–เสาร์นี้
-    const weekTransactions = transactions.filter((t) => {
-      const d = t.date?.toDate?.() || new Date(t.date);
-      return d >= currentStart && d <= weekEnd;
-    });
-
-    const income = weekTransactions
-      .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    const expense = weekTransactions
-      .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + t.amount, 0);
-
-    weeks.push({
-      label: `สัปดาห์ที่ ${weekCount}`,
-      income,
-      expense,
-    });
-
-    // ขยับไปสัปดาห์ถัดไป
-    currentStart.setDate(currentStart.getDate() + 7);
-    weekCount++;
-  }
-
-  // ✅ debug ดูช่วงวันแต่ละสัปดาห์ใน console
-  console.log("📅 Weekly breakdown (อาทิตย์–เสาร์):");
-  weeks.forEach((w, i) => {
-    console.log(
-      `${w.label}: ${new Date(
-        thisYear,
-        thisMonth,
-        1 + i * 7
-      ).toLocaleDateString("th-TH")} - ${new Date(
-        thisYear,
-        thisMonth,
-        1 + i * 7 + 6
-      ).toLocaleDateString("th-TH")}`
-    );
-  });
-
-  setData(weeks);
-};
-
-
-
-  // ✅ สร้างข้อมูลรายเดือน
-  const generateMonthlyData = (transactions) => {
-    const months = [
-      "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.",
-      "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค.",
-    ];
-
-    const monthly = months.map((m, i) => ({
-      label: m,
-      income: 0,
-      expense: 0,
-      monthIndex: i,
-    }));
-
-    transactions.forEach((t) => {
-      const dateObj = t.date?.toDate?.() || new Date(t.date);
-      const monthIndex = dateObj.getMonth();
-      if (t.type === "income") monthly[monthIndex].income += t.amount;
-      else if (t.type === "expense") monthly[monthIndex].expense += t.amount;
-    });
-
-    setData(monthly);
-  };
 
   // ✅ ปัดซ้าย/ขวาเพื่อเปลี่ยนสัปดาห์
   const handleWeekSwipe = (direction) => {
@@ -493,109 +578,36 @@ const generateWeeklyData = (transactions) => {
                         w-full max-w-[380px] sm:max-w-[450px] md:max-w-[600px]
                         aspect-square flex flex-col justify-center items-center 
                         p-3 sm:p-4 relative">
-          <ResponsiveContainer 
-            width="100%" 
-            height="100%"
-          >
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart margin={{ top: 5, right: 5, left: 5, bottom: 50 }}>
-
               <Pie
-                data={(() => {
-                  const saved = sessionStorage.getItem("aiResult");
-                  const categoryMap = {
-                    "อาหาร/เครื่องดื่ม": { icon: "🍜", color: "#ef4444" },
-                    "ค่าที่อยู่อาศัย/เครื่องใช้": { icon: "🏠", color: "#3b82f6" },
-                    "ยานพาหนะ/การเดินทาง": { icon: "🚗", color: "#eab308" },
-                    "เสื้อผ้า/รองเท้า": { icon: "👗", color: "#a855f7" },
-                    "การสื่อสาร": { icon: "📞", color: "#ec4899" },
-                    "การศึกษา": { icon: "🎓", color: "#22c55e" },
-                    "เวชภัณฑ์/ค่ารักษา": { icon: "💊", color: "#14b8a6" },
-                    "บันเทิง": { icon: "🎉", color: "#f97316" },
-                    "อื่นๆ": { icon: "📦", color: "#6b7280" },
-                  };
-
-                  let categories = [];
-
-                  // ✅ ถ้ามีข้อมูลจาก AI
-                  if (saved) {
-                    const aiData = JSON.parse(saved);
-                    if (aiData?.categories?.length > 0) {
-                      categories = aiData.categories
-                        .map((c) => ({
-                          name: c.name,
-                          icon: categoryMap[c.name]?.icon || "📦",
-                          color: categoryMap[c.name]?.color || "#6b7280",
-                          value: c.amount,
-                        }))
-                        .filter((c) => c.value > 0); // ✅ กรองหมวด 0
-                    }
-                  }
-
-                  // ✅ ถ้าไม่มีข้อมูลจาก AI ใช้ Firestore
-                  if (categories.length === 0) {
-                    const now = new Date();
-                    const thisMonth = now.getMonth();
-                    const thisYear = now.getFullYear();
-                    const categoryTotals = {};
-
-                    allTransactions.forEach((t) => {
-                      const d = t.date?.toDate?.() || new Date(t.date);
-                      if (
-                        t.type === "expense" &&
-                        d.getMonth() === thisMonth &&
-                        d.getFullYear() === thisYear
-                      ) {
-                        const cat = t.category || "อื่นๆ";
-                        categoryTotals[cat] =
-                          (categoryTotals[cat] || 0) + t.amount;
-                      }
-                    });
-
-                    const total = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
-
-                    categories = Object.entries(categoryTotals)
-                      .map(([name, value]) => ({
-                        name,
-                        icon: categoryMap[name]?.icon || "📦",
-                        color: categoryMap[name]?.color || "#6b7280",
-                        value,
-                        percent: total ? (value / total) * 100 : 0,
-                      }))
-                      .filter((c) => c.value > 0) // ✅ ไม่แสดงหมวด 0
-                      .sort((a, b) => b.value - a.value);
-                  }
-
-                  // ✅ Normalize percent ให้รวม 100% พอดี
-                  const percentSum = categories.reduce((sum, c) => sum + c.percent, 0);
-                  if (percentSum !== 100 && categories.length > 0) {
-                    // ปรับตัวสุดท้ายให้รวม 100% พอดี
-                    const diff = 100 - percentSum;
-                    categories[categories.length - 1].percent += diff;
-                  }
-
-                  return categories;
-                })()}
+                data={pieChartData}
                 dataKey="value"
                 nameKey="name"
                 outerRadius="70%"
-                label={({ payload, percent }) =>
-                  `${payload.icon} ${payload.percent?.toFixed(1) ?? (percent * 100).toFixed(1)}%`
-                }
+                label={({ payload }) => {
+                  const percentText = payload?.percent
+                    ? `${payload.percent.toFixed(1)}%`
+                    : "0%";
+                  return `${payload?.icon || "📦"} ${percentText}`;
+                }}
                 labelLine={false}
               >
-                {[
-                  "#ef4444", "#3b82f6", "#eab308", "#a855f7",
-                  "#ec4899", "#22c55e", "#14b8a6", "#f97316", "#6b7280",
-                ].map((c, i) => (
-                  <Cell key={i} fill={c} />
+                {pieChartData.map((entry) => (
+                  <Cell key={entry.name} fill={entry.color} />
                 ))}
               </Pie>
 
               <Tooltip
-                formatter={(value, name, props) => [
-                  `${value.toLocaleString()} บาท`,
-                  `${props.payload.icon || "📦"} ${props.payload.name}`,
-                ]}
+                formatter={(_, name, props) => {
+                  const percentText = props?.payload?.percent
+                    ? `${props.payload.percent.toFixed(1)}%`
+                    : "0%";
+                  return [
+                    percentText,
+                    `${props?.payload?.icon || "📦"} ${props?.payload?.name || name}`,
+                  ];
+                }}
                 contentStyle={{
                   fontSize: "0.85rem",
                   borderRadius: "8px",
@@ -603,40 +615,45 @@ const generateWeeklyData = (transactions) => {
                 }}
               />
 
-              {/* ✅ Legend กลางล่างแบบสวยพร้อมสี */}
               <Legend
                 verticalAlign="bottom"
                 align="center"
                 wrapperStyle={(() => {
-                  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+                  const isMobile =
+                    typeof window !== "undefined" && window.innerWidth < 640;
                   return {
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '11px',
-                    width: '100%',
-                    maxWidth: isMobile ? '98vw' : '320px',
-                    marginTop: isMobile ? '12px' : '24px',
-                    marginBottom: '0',
-                    rowGap: '2px',
-                    marginLeft: 'auto',
-                    marginRight: 'auto',
-                    textAlign: 'center',
+                    display: "flex",
+                    flexWrap: "wrap",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontSize: "11px",
+                    width: "100%",
+                    maxWidth: isMobile ? "98vw" : "360px",
+                    marginTop: isMobile ? "12px" : "24px",
+                    marginBottom: "0",
+                    rowGap: "2px",
+                    marginLeft: "auto",
+                    marginRight: "auto",
+                    textAlign: "center",
                   };
                 })()}
                 iconSize={10}
                 iconType="circle"
                 formatter={(value, entry) => {
                   const payload = entry?.payload;
+                  const percentText = payload?.percent
+                    ? `${payload.percent.toFixed(1)}%`
+                    : "0%";
                   return (
-                    <span style={{ 
-                      color: payload?.color || "#6b7280",
-                      fontWeight: "500",
-                      fontSize: "11px"
-                    }}>
-                      {payload?.icon || "📦"} {payload?.name || value}
+                    <span
+                      style={{
+                        color: payload?.color || "#6b7280",
+                        fontWeight: 500,
+                        fontSize: "11px",
+                      }}
+                    >
+                      {payload?.icon || "📦"} {payload?.name || value} ({percentText})
                     </span>
                   );
                 }}
@@ -652,73 +669,32 @@ const generateWeeklyData = (transactions) => {
       <h3 className="text-base sm:text-lg md:text-xl font-bold mb-3 text-blue-800">
         หมวดหมู่ที่ใช้เยอะสุดในเดือนนี้
       </h3>
-  {(() => {
-    // ✅ ใช้ข้อมูลเดียวกับ PieChart
-    const saved = sessionStorage.getItem("aiResult");
-    let categories = [];
-
-    if (saved) {
-      const aiData = JSON.parse(saved);
-      if (aiData?.categories?.length > 0) {
-        categories = aiData.categories
-          .map((c) => ({
-            name: c.name,
-            icon: c.icon || "📦",
-            value: c.amount || c.value || 0,
-          }))
-          .sort((a, b) => b.value - a.value);
-      }
-    }
-
-    // ✅ ถ้าไม่มีข้อมูลจาก AI → ใช้ Firestore
-    if (categories.length === 0) {
-      const now = new Date();
-      const thisMonth = now.getMonth();
-      const thisYear = now.getFullYear();
-      const categoryTotals = {};
-
-      allTransactions.forEach((t) => {
-        const d = t.date?.toDate?.() || new Date(t.date);
-        if (t.type === "expense" && d.getMonth() === thisMonth && d.getFullYear() === thisYear) {
-          const cat = t.category || "อื่นๆ";
-          categoryTotals[cat] = (categoryTotals[cat] || 0) + t.amount;
-        }
-      });
-
-      categories = Object.entries(categoryTotals)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value);
-    }
-
-    if (categories.length === 0)
-      return <p className="text-gray-500 mt-4">ไม่มีข้อมูลรายจ่ายในเดือนนี้</p>;
-
-    // ✅ แสดงลิสต์หมวดจากมากไปน้อย
-    return (
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 sm:p-4 md:p-5 w-full max-w-full">
-        {categories.map((cat, i) => (
-          <div
-            key={cat.name}
-            className={`flex justify-between items-center py-1.5 sm:py-2 ${
-              i === 0 ? "font-bold text-red-600" : "text-gray-700"
-            }`}
-          >
-            <span className="flex items-center text-xs sm:text-sm">
-              <span className="text-gray-400 mr-1.5 sm:mr-2 text-xs">{i + 1}.</span>
-              <span className="mr-1">{cat.icon}</span>
-              <span className="truncate max-w-[120px] sm:max-w-none">{cat.name}</span>
+  {pieChartData.length === 0 ? (
+    <p className="text-gray-500 mt-4">ไม่มีข้อมูลรายจ่ายในเดือนนี้</p>
+  ) : (
+    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 sm:p-4 md:p-5 w-full max-w-full">
+      {pieChartData.map((cat, index) => (
+        <div
+          key={cat.name}
+          className={`flex justify-between items-center py-1.5 sm:py-2 ${
+            index === 0 ? "font-bold text-red-600" : "text-gray-700"
+          }`}
+        >
+          <span className="flex items-center text-xs sm:text-sm">
+            <span className="text-gray-400 mr-1.5 sm:mr-2 text-xs">{index + 1}.</span>
+            <span className="mr-1">{cat.icon}</span>
+            <span className="truncate max-w-[120px] sm:max-w-none">{cat.name}</span>
+          </span>
+          <span className="text-xs sm:text-sm text-gray-600 ml-2 flex-shrink-0">
+            {cat.value.toLocaleString()} บาท{" "}
+            <span className="text-gray-400 font-medium hidden sm:inline">
+              ({cat.percent.toFixed(1)}%)
             </span>
-            <span className="text-xs sm:text-sm text-gray-600 ml-2 flex-shrink-0">
-              {cat.value.toLocaleString()} บาท{" "}
-              <span className="text-gray-400 font-medium hidden sm:inline">
-                ({((cat.value / categories.reduce((a, b) => a + b.value, 0)) * 100).toFixed(1)}%)
-              </span>
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  })()}
+          </span>
+        </div>
+      ))}
+    </div>
+  )}
 </div>
 
   </div>

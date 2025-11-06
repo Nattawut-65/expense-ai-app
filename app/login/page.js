@@ -7,15 +7,16 @@ import { auth, googleProvider } from "@/lib/firebase";
 import {
   signInWithPopup,
   signInWithEmailAndPassword,
-  signOut,
+  onAuthStateChanged,
 } from "firebase/auth";
-import { ensureUserData } from "@/lib/ensureUserData"; // ✅ เพิ่มตรงนี้
+import { ensureUserData } from "@/lib/ensureUserData";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const clickTimerRef = useRef(null);
   const router = useRouter();
@@ -25,33 +26,30 @@ export default function LoginPage() {
     const newCount = logoClickCount + 1;
     setLogoClickCount(newCount);
 
-    // Clear previous timer
-    if (clickTimerRef.current) {
-      clearTimeout(clickTimerRef.current);
-    }
+    if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
 
-    // If 7 clicks, go to admin
     if (newCount === 7) {
       router.push("/admin");
       setLogoClickCount(0);
       return;
     }
 
-    // Reset counter after 2 seconds of no clicks
     clickTimerRef.current = setTimeout(() => {
       setLogoClickCount(0);
     }, 2000);
   };
 
-  // ✅ ถ้ามี session ค้าง → logout อัตโนมัติ
+  // ✅ ตรวจสอบ session แต่ไม่ redirect ทันที (ให้แค่รู้สถานะ)
   useEffect(() => {
-    const checkSession = async () => {
-      if (auth.currentUser) {
-        await signOut(auth);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        localStorage.setItem("isLoggedIn", "true");
+      } else {
         localStorage.removeItem("isLoggedIn");
       }
-    };
-    checkSession();
+      setCheckingAuth(false);
+    });
+    return () => unsubscribe();
   }, []);
 
   // ✅ Email/Password Login
@@ -60,9 +58,9 @@ export default function LoginPage() {
     setError("");
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
-      await ensureUserData(result.user); // ✅ ตรวจ Firestore ถ้ายังไม่มีจะสร้าง
+      await ensureUserData(result.user);
       localStorage.setItem("isLoggedIn", "true");
-      router.push("/home");
+      router.push("/home"); // ✅ เด้งเฉพาะตอนกด login สำเร็จ
     } catch (error) {
       console.error("Login error:", error);
       setError("อีเมลหรือรหัสผ่านไม่ถูกต้อง ❌");
@@ -74,7 +72,7 @@ export default function LoginPage() {
     setError("");
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      await ensureUserData(result.user); // ✅ ตรวจ Firestore ถ้ายังไม่มีจะสร้าง
+      await ensureUserData(result.user);
       localStorage.setItem("isLoggedIn", "true");
       router.push("/home");
     } catch (error) {
@@ -83,17 +81,32 @@ export default function LoginPage() {
     }
   };
 
+  // ⏳ ระหว่างตรวจ session ให้แสดง loader
+  if (checkingAuth) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-blue-600 text-white text-lg">
+        กำลังโหลด...
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-blue-500 to-blue-700">
       <div className="w-full max-w-md p-6">
+        {/* 🔹 Logo */}
         <div className="flex justify-center mb-4">
-          <div 
+          <div
             className={`bg-white rounded-full p-4 shadow-md cursor-pointer transition-all duration-300 ${
-              logoClickCount > 0 ? 'scale-110 shadow-xl ring-4 ring-blue-300' : 'hover:scale-105'
+              logoClickCount > 0
+                ? "scale-110 shadow-xl ring-4 ring-blue-300"
+                : "hover:scale-105"
             }`}
             onClick={handleLogoClick}
             style={{
-              transform: logoClickCount > 0 ? `rotate(${logoClickCount * 51.4}deg)` : 'rotate(0deg)',
+              transform:
+                logoClickCount > 0
+                  ? `rotate(${logoClickCount * 51.4}deg)`
+                  : "rotate(0deg)",
             }}
           >
             <Image src="/logo.png" alt="Logo" width={64} height={64} />
@@ -106,6 +119,7 @@ export default function LoginPage() {
           </p>
         )}
 
+        {/* 🔹 Title */}
         <h1 className="text-center text-white font-bold text-2xl">
           ExpensetrackingAI
         </h1>
@@ -113,6 +127,7 @@ export default function LoginPage() {
           ระบบจัดการรายรับรายจ่ายด้วย AI ช่วยให้คุณควบคุมการเงินได้อย่างมีประสิทธิภาพ
         </p>
 
+        {/* 🔹 Login Form */}
         <form
           onSubmit={handleLogin}
           className="bg-white rounded-2xl shadow-lg p-6 mt-6"
@@ -174,7 +189,9 @@ export default function LoginPage() {
 
           <div className="border-t my-4"></div>
 
-          <p className="text-center text-sm mb-2 text-gray-800">ยังไม่มีบัญชี?</p>
+          <p className="text-center text-sm mb-2 text-gray-800">
+            ยังไม่มีบัญชี?
+          </p>
           <button
             type="button"
             onClick={() => router.push("/register")}

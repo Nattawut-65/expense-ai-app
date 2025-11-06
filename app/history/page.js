@@ -20,10 +20,14 @@ import { useTheme } from "@/contexts/ThemeContext";
 
 export default function HistoryPage() {
   const { theme } = useTheme();
+  const nowTH = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
+  );
+  const currentMonth = nowTH.toISOString().slice(0, 7);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState("2025-10");
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -275,6 +279,8 @@ export default function HistoryPage() {
                               2,
                               "0"
                             )}`;
+                            const isSelected = selectedMonth === val;
+                            const isCurrent = currentMonth === val;
                             return (
                               <button
                                 key={m}
@@ -282,9 +288,15 @@ export default function HistoryPage() {
                                   setSelectedMonth(val);
                                   setShowMonthPicker(false);
                                 }}
-                                className={`py-1.5 rounded-lg font-bold text-sm border ${
-                                  selectedMonth === val
+                                className={`py-1.5 rounded-lg font-bold text-sm border transition ${
+                                  isSelected
                                     ? "bg-blue-600 text-white border-blue-600"
+                                    : isCurrent
+                                    ? theme === "dark"
+                                      ? "bg-blue-900 text-blue-200 border-blue-700"
+                                      : "bg-blue-100 text-blue-700 border-blue-300"
+                                    : theme === "dark"
+                                    ? "bg-gray-700 text-gray-300 border-gray-600 hover:bg-gray-600"
                                     : "bg-gray-50 text-gray-700 border-gray-300 hover:bg-blue-50"
                                 }`}
                               >

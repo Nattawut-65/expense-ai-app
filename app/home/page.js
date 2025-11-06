@@ -983,7 +983,8 @@ useEffect(() => {
             .sort((a, b) => b.amount - a.amount) // เรียงจากมากไปน้อย
             .map((cat, idx) => {
             const limit = limits[cat.name] || 10000;
-            const percent = Math.min(Math.round((cat.amount / limit) * 100), 100);
+            const rawLimitPercent = limit > 0 ? Math.round((cat.amount / limit) * 100) : 0;
+            const barPercent = Math.min(Math.max(rawLimitPercent, 0), 100);
             const overLimit = cat.amount > limit;
             const remaining = limit - cat.amount;
 
@@ -1034,10 +1035,10 @@ useEffect(() => {
                     className={`${
                       overLimit ? "bg-red-500" : cat.color
                     } h-5 transition-all duration-300 flex items-center justify-end pr-2`}
-                    style={{ width: `${Math.min(percent, 100)}%` }}
+                    style={{ width: `${barPercent}%` }}
                   >
                     <span className="text-white text-xs font-bold drop-shadow">
-                      {percent}%
+                      {rawLimitPercent}%
                     </span>
                   </div>
                 </div>
@@ -1047,9 +1048,9 @@ useEffect(() => {
                   <p className={`text-xs font-bold ${
                     overLimit 
                       ? "text-red-600" 
-                      : percent >= 80
+                      : rawLimitPercent >= 80
                       ? "text-orange-600"
-                      : percent >= 50
+                      : rawLimitPercent >= 50
                       ? "text-yellow-600"
                       : theme === "dark" 
                       ? "text-green-400" 
@@ -1057,20 +1058,20 @@ useEffect(() => {
                   }`}>
                     {overLimit 
                       ? "⚠️ เกินงบประมาณ!" 
-                      : percent >= 80
+                      : rawLimitPercent >= 80
                       ? "⚡ ใกล้ถึงลิมิต"
-                      : percent >= 50
+                      : rawLimitPercent >= 50
                       ? "📊 ครึ่งทางแล้ว"
                       : "✅ อยู่ในงบ"
                     }
                   </p>
-                  {aiData.categoriesWithPercent && (
-                    <p className={`text-xs ${
+                  <p
+                    className={`text-xs ${
                       theme === "dark" ? "text-gray-400" : "text-gray-600"
-                    }`}>
-                      {aiData.categoriesWithPercent.find(c => c.name === cat.name)?.percent || 0}% ของรายจ่ายทั้งหมด
-                    </p>
-                  )}
+                    }`}
+                  >
+                    {rawLimitPercent}% ของงบหมวดนี้
+                  </p>
                 </div>
               </li>
             );
