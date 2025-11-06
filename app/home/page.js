@@ -354,6 +354,7 @@ const transactions = snapshot.docs
           userId: user.uid,
           transactions: expenseTransactions,
           baseCategories: baseCategories.map((c) => c.name),
+          limits,
         }),
       });
 
@@ -370,7 +371,8 @@ const transactions = snapshot.docs
         advice: result.data?.advice || null,
         summary: result.data?.summary,
         categoriesWithPercent: result.data?.categoriesWithPercent,
-        classifiedItems: result.data?.classifiedItems || [] // ✅ เพิ่มรายการที่จำแนก
+        classifiedItems: result.data?.classifiedItems || [], // ✅ เพิ่มรายการที่จำแนก
+        alerts: result.data?.alerts || [],
       };
       setAiData(newData);
       setShowAIResult(true);
@@ -389,7 +391,7 @@ const transactions = snapshot.docs
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth, baseCategories, notificationEnabled, checkLimitNotification]);
+  }, [selectedMonth, baseCategories, notificationEnabled, checkLimitNotification, limits]);
 
   // ✅ ประมวลผล AI อัตโนมัติเมื่อข้อมูลเปลี่ยนแปลง
   useEffect(() => {
@@ -630,7 +632,8 @@ useEffect(() => {
       categories: data.categories, 
       advice: data.advice,
       summary: data.summary,
-      categoriesWithPercent: data.categoriesWithPercent
+  categoriesWithPercent: data.categoriesWithPercent,
+  alerts: data.alerts || []
     });
     setShowAIResult(true);
     return;
@@ -650,7 +653,8 @@ useEffect(() => {
       categories: data.categories, 
       advice: data.advice,
       summary: data.summary,
-      categoriesWithPercent: data.categoriesWithPercent
+  categoriesWithPercent: data.categoriesWithPercent,
+  alerts: data.alerts || []
     });
     setShowAIResult(true);
   }
@@ -983,10 +987,15 @@ useEffect(() => {
             .sort((a, b) => b.amount - a.amount) // เรียงจากมากไปน้อย
             .map((cat, idx) => {
             const limit = limits[cat.name] || 10000;
-            const rawLimitPercent = limit > 0 ? Math.round((cat.amount / limit) * 100) : 0;
-            const barPercent = Math.min(Math.max(rawLimitPercent, 0), 100);
+            const percent = Math.min(Math.round((cat.amount / limit) * 100), 100);
             const overLimit = cat.amount > limit;
             const remaining = limit - cat.amount;
+            const percentInfo = aiData.categoriesWithPercent?.find((c) => c.name === cat.name);
+            const percentOfLimit = percentInfo?.percentOfLimit ?? null;
+            const percentOfTotal = percentInfo?.percent ?? 0;
+            const percentLabel = percentOfLimit !== null
+              ? `${percentOfLimit}% ของงบหมวดนี้`
+              : `${percentOfTotal}% ของรายจ่ายทั้งหมด`;
 
             // ไม่แสดงหมวดที่ไม่มีรายจ่าย
             if (cat.amount === 0) return null;
@@ -1035,10 +1044,10 @@ useEffect(() => {
                     className={`${
                       overLimit ? "bg-red-500" : cat.color
                     } h-5 transition-all duration-300 flex items-center justify-end pr-2`}
-                    style={{ width: `${barPercent}%` }}
+                    style={{ width: `${Math.min(percent, 100)}%` }}
                   >
                     <span className="text-white text-xs font-bold drop-shadow">
-                      {rawLimitPercent}%
+                      {percent}%
                     </span>
                   </div>
                 </div>
@@ -1048,9 +1057,9 @@ useEffect(() => {
                   <p className={`text-xs font-bold ${
                     overLimit 
                       ? "text-red-600" 
-                      : rawLimitPercent >= 80
+                      : percent >= 80
                       ? "text-orange-600"
-                      : rawLimitPercent >= 50
+                      : percent >= 50
                       ? "text-yellow-600"
                       : theme === "dark" 
                       ? "text-green-400" 
@@ -1058,20 +1067,20 @@ useEffect(() => {
                   }`}>
                     {overLimit 
                       ? "⚠️ เกินงบประมาณ!" 
-                      : rawLimitPercent >= 80
+                      : percent >= 80
                       ? "⚡ ใกล้ถึงลิมิต"
-                      : rawLimitPercent >= 50
+                      : percent >= 50
                       ? "📊 ครึ่งทางแล้ว"
                       : "✅ อยู่ในงบ"
                     }
                   </p>
-                  <p
-                    className={`text-xs ${
+                  {aiData.categoriesWithPercent && (
+                    <p className={`text-xs ${
                       theme === "dark" ? "text-gray-400" : "text-gray-600"
-                    }`}
-                  >
-                    {rawLimitPercent}% ของงบหมวดนี้
-                  </p>
+                    }`}>
+                      {percentLabel}
+                    </p>
+                  )}
                 </div>
               </li>
             );
